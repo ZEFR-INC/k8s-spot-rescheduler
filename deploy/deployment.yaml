@@ -1,3 +1,114 @@
+
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: k8s-spot-rescheduler
+rules:
+  # For leader election
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
+      - update
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+
+  # For listing and watching items
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+      - pods
+      - replicasets
+      - replicationcontrollers
+      - services
+      - statefulsets
+      - poddisruptionbudgets
+      - persistentvolumes
+      - persistentvolumeclaims
+    verbs:
+      - list
+      - get
+      - watch
+  - apiGroups:
+    - apps
+    resources:
+      - statefulsets
+    verbs:
+      - list
+      - get
+      - watch
+  - apiGroups:
+    - extensions
+    resources:
+      - replicasets
+    verbs:
+      - list
+      - get
+      - watch
+  - apiGroups:
+    - policy
+    resources:
+      - poddisruptionbudgets
+    verbs:
+      - list
+      - get
+      - watch
+
+  # For rescheduling pods
+  - apiGroups:
+    - ""
+    resources:
+      - nodes
+    verbs:
+      - update
+  - apiGroups:
+    - ""
+    resources:
+      - pods/eviction
+    verbs:
+      - create
+
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - list
+      - get
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-spot-rescheduler
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-spot-rescheduler
+subjects:
+- kind: ServiceAccount
+  name: k8s-spot-rescheduler
+  namespace: kube-system
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-app: k8s-spot-rescheduler
+  name: k8s-spot-rescheduler
+  namespace: kube-system
+
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -17,7 +128,7 @@ spec:
         app: k8s-spot-rescheduler
     spec:
       # Uncomment the following line if using RBAC
-      #serviceAccountName: k8s-spot-rescheduler
+      serviceAccountName: k8s-spot-rescheduler
       containers:
         - image: quay.io/pusher/k8s-spot-rescheduler:v0.1.1
           name: k8s-spot-rescheduler
